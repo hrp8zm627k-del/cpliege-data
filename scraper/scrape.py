@@ -186,10 +186,17 @@ def parse_calendar(src: str):
 # ---------------------------------------------------------------- clubs
 
 def parse_caleclub(src: str):
-    """caleclub.asp : liste des clubs -> pages clubs/clubNNNN.asp."""
+    """caleclub.asp : liste des clubs -> pages clubs/clubNNNN.asp.
+
+    L'export Excel coupe les lignes au milieu des balises
+    (`<a\\n  href="clubs/club0493.asp">`) : la regex doit tolérer
+    n'importe quel espacement et d'éventuels attributs avant `href`,
+    sinon une bonne partie des clubs est perdue silencieusement.
+    """
     clubs = {}
     for href, label in re.findall(
-        r'<a href="([Cc]lubs/club(?:\d+)\.asp)"[^>]*>(.*?)</a>', src, flags=re.S | re.I
+        r'<a\b[^>]*?href="([Cc]lubs/club\d+\.asp)"[^>]*>(.*?)</a>',
+        src, flags=re.S | re.I
     ):
         text = re.sub(r"\s+", " ", htmllib.unescape(re.sub(r"<[^>]+>", "", label))).strip()
         m = re.match(r"^(\d+)\s+(.*)$", text)
@@ -199,7 +206,7 @@ def parse_caleclub(src: str):
         clubs[matricule] = {
             "matricule": matricule,
             "name": m.group(2).strip(),
-            "page": "clubs/club%04d.asp" % matricule,
+            "page": href,   # href réel de la page, sans reconstruire le nom
         }
     return sorted(clubs.values(), key=lambda c: c["matricule"])
 
