@@ -1,0 +1,43 @@
+name: Scrape cpliege.be
+
+on:
+  schedule:
+    # Le site est régénéré chaque jour vers 6h50 (heure belge).
+    # 05:30 UTC = 6h30/7h30 locale selon la saison ; on passe deux fois
+    # pour couvrir hiver et été, plus le dimanche soir pour les résultats.
+    - cron: "30 5 * * *"
+    - cron: "30 6 * * *"
+    - cron: "0 21 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Scraper cpliege.be
+        run: python scraper/scrape.py
+
+      - name: Commit des données si modifiées
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/api
+          if git diff --cached --quiet; then
+            echo "Pas de changement."
+          else
+            git commit -m "data: mise à jour $(date -u +%Y-%m-%dT%H:%M)"
+            git push
+          fi
